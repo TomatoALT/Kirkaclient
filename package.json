@@ -1,0 +1,48 @@
+{
+  "name": "kclient2.0",
+  "version": "2.2.2",
+  "description": "A performance client for Kirka.io",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "startd": "npm start -- --debug",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "release": "electron-builder",
+    "postinstall": "electron-builder install-app-deps",
+    "package-win": "electron-packager . KClient --overwrite --asar=true --platform=win32 --arch=x64 --icon=build/icon.ico --prune=true --out=build --version-string.CompanyName=ykJINXZ --version-string.FileDescription=1.6.9 --version-string.ProductName=\"KClient\""
+  },
+  "build": {
+    "files": "!**/release-builds/*"
+  },
+  "author": "Tomato",
+  "license": "ISC",
+  "dependencies": {
+    "discord-rich-presence": "0.0.8",
+    "electron-is-dev": "^2.0.0",
+    "electron-localshortcut": "^3.2.1",
+    "electron-prompt": "^1.7.0",
+    "electron-squirrel-startup": "^1.0.0",
+    "electron-store": "^8.0.1",
+    "follow-redirects": "^1.14.4",
+    "get-blob-duration": "^1.2.0",
+    "node-fetch": "^2.6.5",
+    "update-electron-app": "^2.0.1",
+    "v8-compile-cache": "^2.3.0",
+    "yarn": "^1.22.17"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TomatoALT/Kirkaclient.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TomatoALT/Kirkaclient/issues"
+  },
+  "homepage": "https://github.com/TomatoALT/Kirkaclient/releases",
+  "devDependencies": {
+    "electron": "^15.1.2",
+    "electron-builder": "^22.13.1",
+    "electron-updater": "^4.3.9"
+  }
+}
