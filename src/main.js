@@ -4,10 +4,12 @@ const path = require("path");
 const { app, BrowserWindow, screen, clipboard, dialog, shell, globalShortcut, session, ipcMain, ipcRenderer } = require('electron');
 const electronLocalshortcut = require("electron-localshortcut");
 const Store = require("electron-store");
+const log = require('electron-log')
 const config = new Store();
 const { DiscordClient, InitRPC } = require('./features/discordRPC')
+const yargs = require('yargs')
 
-
+const argv = yargs.argv
 const AUTO_UPDATE = argv.update || config.get('autoUpdate', 'download')
 
 
@@ -64,7 +66,7 @@ function createWindow() {
     createShortcutKeys();
     create_set();
 
-    win.loadURL('https://krunker.io/');
+    win.loadURL('https://kirka.io/');
     
 
 
@@ -165,6 +167,7 @@ app.on("window-all-closed", () => {
     }
 });
 
+
 function createSplashWindow() {
     splash = new BrowserWindow({
         width: 600,
@@ -182,7 +185,8 @@ function createSplashWindow() {
             contextIsolation: false
         }
     });
-    splash.loadFile(`${__dirname}/splash/splash.html`);
+    let contents = splash.webContents;
+    splash.loadFile(`${__dirname}/html/splash.html`);
 
     
 	autoUpdate().finally(() => launchGame());
@@ -241,6 +245,15 @@ function createSplashWindow() {
 			}
 		});
 	}
+
+    function launchGame() {
+        const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+        createWindow();
+        wait(10000).then(() => { 
+            canDestroy = true;
+        });
+    }
+
 }
 
 function create_set() {

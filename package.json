@@ -22,6 +22,7 @@
     "discord-rich-presence": "0.0.8",
     "electron-is-dev": "^2.0.0",
     "electron-localshortcut": "^3.2.1",
+    "electron-log": "^4.4.1",
     "electron-prompt": "^1.7.0",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^8.0.1",
@@ -30,6 +31,7 @@
     "node-fetch": "^2.6.5",
     "update-electron-app": "^2.0.1",
     "v8-compile-cache": "^2.3.0",
+    "yargs": "^17.2.1",
     "yarn": "^1.22.17"
   },
   "repository": {

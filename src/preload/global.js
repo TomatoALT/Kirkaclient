@@ -50,6 +50,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 function doOnLoad() {
     resetVars();
     let html = `
+    <link rel="stylesheet" href="https://tomatoalt.github.io/maincssV2/css.css"
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
 
