@@ -29,9 +29,9 @@
     "follow-redirects": "^1.14.4",
     "get-blob-duration": "^1.2.0",
     "node-fetch": "^2.6.5",
-    "update-electron-app": "^2.0.1",
     "v8-compile-cache": "^2.3.0",
     "yargs": "^17.2.1",
+    "electron-updater": "^4.6.1",
     "yarn": "^1.22.17"
   },
   "repository": {
@@ -44,7 +44,6 @@
   "homepage": "https://github.com/TomatoALT/Kirkaclient/releases",
   "devDependencies": {
     "electron": "^15.1.2",
-    "electron-builder": "^22.13.1",
-    "electron-updater": "^4.3.9"
+    "electron-builder": "^22.13.1"
   }
 }
