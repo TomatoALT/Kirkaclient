@@ -1,12 +1,12 @@
 {
   "name": "kclient2.0",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "description": "A performance client for Kirka.io",
   "main": "src/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron .",
-    "startd": "npm start -- --debug",
+    "startd": "set ELECTRON_IS_DEV=0 && electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "release": "electron-builder",

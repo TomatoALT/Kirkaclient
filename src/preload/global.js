@@ -46,11 +46,10 @@ window.addEventListener('DOMContentLoaded', (event) => {
         }
     }, 1000)
 })
-
+//  <link rel="stylesheet" href="https://tomatoalt.github.io/maincssV2/css.css"
 function doOnLoad() {
     resetVars();
     let html = `
-    <link rel="stylesheet" href="https://tomatoalt.github.io/maincssV2/css.css"
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
 
@@ -164,7 +163,7 @@ function doOnLoad() {
                 let canvas = document.getElementsByClassName("left-icons")[0]
                 canvas = canvas.children[0];
                 if (canvas === undefined) return;
-                canvas.insertAdjacentHTML('beforeend',`<div data-v-4f66c13e="" data-v-6be9607e="" id="clientSettings" class="icon-btn text-1" style="--i:3; position: absolute; top: 230%;"><div data-v-4f66c13e="" class="wrapper"><img data-v-b8de1e14="" data-v-4f66c13e="" src="https://media.discordapp.net/attachments/868890525871247450/875360498701447248/Pngtreelaptop_setting_gear_icon_vector_3664021.png" width="100%" height="auto"><div data-v-4f66c13e="" class="text-icon">CLIENT</div></div></div>`)
+                canvas.insertAdjacentHTML('beforeend',`<div data-v-4f66c13e="" data-v-6be9607e="" id="clientSettings" class="icon-btn text-1" style="--i:3; position: absolute; top: 110%;"><div data-v-4f66c13e="" class="wrapper"><img data-v-b8de1e14="" data-v-4f66c13e="" src="https://media.discordapp.net/attachments/868890525871247450/875360498701447248/Pngtreelaptop_setting_gear_icon_vector_3664021.png" width="100%" height="auto"><div data-v-4f66c13e="" class="text-icon">CLIENT</div></div></div>`)
                 settings = document.getElementById("clientSettings")
                 settings.onclick = () => {
                     ipcRenderer.send('show-settings')
@@ -187,7 +186,7 @@ function doOnLoad() {
                 let canvas = document.getElementsByClassName("left-icons")[0]
                 canvas = canvas.children[0];
                 if (canvas === undefined) return;
-                canvas.insertAdjacentHTML('beforeend',`<div data-v-4f66c13e="" data-v-6be9607e="" id="exitButton" class="icon-btn text-2" style="--i:3; position: absolute; top: 200%;"><div data-v-4f66c13e="" class="wrapper"><img data-v-b8de1e14="" data-v-4f66c13e="" src="https://cdn.discordapp.com/attachments/898311311048441897/900968889826021496/clipart1442847.png" width="50%" height="auto"><div data-v-4f66c13e="" class="text-icon">EXIT</div></div></div>`)
+                canvas.insertAdjacentHTML('beforeend',`<div data-v-4f66c13e="" data-v-6be9607e="" id="exitButton" class="icon-btn text-2" style="--i:3; position: absolute; top: 98%;"><div data-v-4f66c13e="" class="wrapper"><img data-v-b8de1e14="" data-v-4f66c13e="" src="https://cdn.discordapp.com/attachments/898311311048441897/900968889826021496/clipart1442847.png" width="50%" height="auto"><div data-v-4f66c13e="" class="text-icon">EXIT</div></div></div>`)
                 extBtn = document.getElementById("exitButton")
                 extBtn.addEventListener('click', () => {
                     ipcRenderer.send('close-me')

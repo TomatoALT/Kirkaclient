@@ -249,7 +249,7 @@ function createSplashWindow() {
     function launchGame() {
         const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
         createWindow();
-        wait(10000).then(() => { 
+        wait(5000).then(() => { 
             canDestroy = true;
         });
     }
