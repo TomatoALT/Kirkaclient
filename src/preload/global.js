@@ -156,7 +156,7 @@ function doOnLoad() {
 
     switch (state) {
         case 'home':
-            promo = document.getElementsByClassName("play")[0];
+            promo = document.getElementsByClassName("left-interface")[0];
             promo.appendChild(div);
 
             let settings = document.getElementById("clientSettings")
@@ -164,7 +164,7 @@ function doOnLoad() {
                 let canvas = document.getElementsByClassName("left-icons")[0]
                 canvas = canvas.children[0];
                 if (canvas === undefined) return;
-                canvas.insertAdjacentHTML('beforeend',`<div data-v-4f66c13e="" data-v-6be9607e="" id="clientSettings" class="icon-btn text-1" style="--i:5; position: absolute; top: 10%;"><div data-v-4f66c13e="" class="wrapper"><img data-v-b8de1e14="" data-v-4f66c13e="" src="https://media.discordapp.net/attachments/868890525871247450/875360498701447248/Pngtreelaptop_setting_gear_icon_vector_3664021.png" width="100%" height="auto"><div data-v-4f66c13e="" class="text-icon">CLIENT</div></div></div>`)
+                canvas.insertAdjacentHTML('beforeend',`<div data-v-4f66c13e="" data-v-6be9607e="" id="clientSettings" class="icon-btn text-1" style="--i:5; position: absolute; top: 110%;"><div data-v-4f66c13e="" class="wrapper"><img data-v-b8de1e14="" data-v-4f66c13e="" src="https://media.discordapp.net/attachments/868890525871247450/875360498701447248/Pngtreelaptop_setting_gear_icon_vector_3664021.png" width="100%" height="auto"><div data-v-4f66c13e="" class="text-icon">CLIENT</div></div></div>`)
                 settings = document.getElementById("clientSettings")
                 settings.onclick = () => {
                     ipcRenderer.send('show-settings')
@@ -178,7 +178,7 @@ function doOnLoad() {
     
     switch (state2) {
         case 'home':
-            promo = document.getElementsByClassName("play")[0];
+            promo = document.getElementsByClassName("left-interface")[0];
             promo.appendChild(div2);
             let extBtn = document.getElementById("exitButton")
             if (extBtn === null || extBtn === undefined) {
@@ -292,9 +292,9 @@ window.addEventListener('keydown', function(event) {
     }
 });
 
-let ping;
+let fps;
 const times = [];
-let fps = 0;
+
 
 function pingDisplay() {
     console.log("Starting Ping")
@@ -309,34 +309,6 @@ function pingDisplay() {
     refreshLoop()
 }
 
-/* TODO Fix fps display*/
-function fpsDisplay() {
-    console.log("Starting FPS")
-    setInterval(() => {
-        let t1= Date.now()
-        fetch('https://www.kirka.io/')
-        .then((res) => {
-            fps = Date.now() - t1
-        })
-    }, 2500)
-
-    refreshLoop()
-}
-
-function refreshLoop() {
-    updateFPS(fps);
-
-    window.requestAnimationFrame(() => {
-        const now = performance.now();
-        while (times.length > 0 && times[0] <= now - 1000) {
-            times.shift();
-        }
-        times.push(now);
-        fps = times.length;
-
-        refreshLoop();
-    });
-}
 function refreshLoop() {
     updatePing(ping);
 
@@ -352,19 +324,7 @@ function refreshLoop() {
     });
 }
 
-function updateFPS(fps) {
-    leftIcons = document.querySelector('.state-cont');
-    if (leftIcons === null) return;
-    if (framesPerSeconddiv === null) {
-        framesPerSeconddiv = document.createElement('div');
-        leftIcons.appendChild(framesPerSeconddiv);
-    }
-    if (!config.get("showFPS", true)) {
-        framesPerSeconddiv.innerText = ``
-    } else {
-        framesPerSeconddiv.innerText = `FPS: ${fps}`
-    }
-}
+
 function updatePing(ping) {
     leftIcons = document.querySelector('.state-cont');
     if (leftIcons === null) return;
@@ -375,7 +335,7 @@ function updatePing(ping) {
     if (!config.get("showPing", true)) {
         pingdiv.innerText = ``
     } else {
-        pingdiv.innerText = `Ping: ${ping}`
+        pingdiv.innerText = `FPS: ${ping}`
     }
 }
 

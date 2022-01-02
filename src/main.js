@@ -220,8 +220,8 @@ function createSplashWindow() {
 						resolve();
 					});
 					autoUpdater.on('download-progress', info => {
-						contents.send('message', `Downloaded ${Math.floor(info.percent)}%`, Math.floor(info.bytesPerSecond / 1000) + 'kB/s');
-						win.setProgressBar(info.percent / 100);
+						//contents.send('message', `Downloaded ${Math.floor(info.percent)}%`, Math.floor(info.bytesPerSecond / 1000) + 'kB/s');
+                        //win.setProgressBar(info.percent / 100 );
 					});
 					autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName)=> {
 						const dialogOpts = {
