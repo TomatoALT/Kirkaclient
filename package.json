@@ -1,6 +1,6 @@
 {
   "name": "kclient2.0",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "description": "A performance client for Kirka.io",
   "main": "src/main.js",
   "scripts": {
