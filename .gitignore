@@ -9,3 +9,5 @@ dist/
 *.yml
 *.asar
 electron-builder.yml
+modules/
+game.js

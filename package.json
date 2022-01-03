@@ -26,12 +26,15 @@
     "electron-prompt": "^1.7.0",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^8.0.1",
+    "electron-updater": "^4.6.1",
     "follow-redirects": "^1.14.4",
     "get-blob-duration": "^1.2.0",
     "node-fetch": "^2.6.5",
+    "socket.io": "^4.4.0",
+    "tmi.js": "^1.5.0",
     "v8-compile-cache": "^2.3.0",
+    "websocket": "^1.0.34",
     "yargs": "^17.2.1",
-    "electron-updater": "^4.6.1",
     "yarn": "^1.22.17"
   },
   "repository": {
@@ -43,7 +46,7 @@
   },
   "homepage": "https://github.com/TomatoALT/Kirkaclient/releases",
   "devDependencies": {
-    "electron": "^15.1.2",
+    "electron": "^16.0.5",
     "electron-builder": "^22.13.1"
   }
 }

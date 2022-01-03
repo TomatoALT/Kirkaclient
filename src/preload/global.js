@@ -1,27 +1,17 @@
-const { ipcRenderer, remote, app } = require('electron');
-const { badge_checker } = require('../features/badges')
-const Store = require("electron-store");
-const events = require('events');
-const { gameLoaded } = require('../features/const')
+const { ipcRenderer, remote } = require('electron');
+const Store = require('electron-store');
 const config = new Store();
-const fixwebm  = require('../recorder/fix')
+const fixwebm = require('../recorder/fix');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const getBlobDuration = require('get-blob-duration')
+const getBlobDuration = require('get-blob-duration');
+const autoJoin = require('../features/autoJoin');
 
-// Const can't not be changed att all
-// let can changed locally
-// var deprecated
-// null = undefined
-
-
-let badges;
 let leftIcons;
-let framesPerSeconddiv = null;
-let pingdiv = null;
+let FPSdiv = null;
 let mediaRecorder = null;
-let filepath = '';	
+let filepath = '';
 let starttime;
 let pausetime;
 let pause;
@@ -29,12 +19,13 @@ let totalPause = 0;
 let recordedChunks = [];
 let recording = false;
 let paused = false;
-let chatFocus = false;
-let chatState = true;
-let chatForce = true;
-let logDir = path.join(os.homedir(), '/Documents/KClient2.0')
-
-if (!fs.existsSync(logDir)) fs.promises.mkdir(logDir, { recursive: true })
+let badgesData;
+let settings;
+let isChatFocus = false;
+let logDir;
+ipcRenderer.on('logDir', (e, val) => {
+    logDir = val;
+});
 
 let oldState;
 window.addEventListener('DOMContentLoaded', (event) => {
@@ -52,6 +43,7 @@ function doOnLoad() {
     let html = `
     <link rel="stylesheet" href="https://tomatoalt.github.io/maincssV2/css.css"
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="${config.get('css')}">
     <style>
 
     #show-clientNotif{
@@ -198,375 +190,547 @@ function doOnLoad() {
     }
     
     
+    if (state != 'game')
+    return;
 
-    if (state != "game") return;
-    if (config.get("showPing", true)) pingDisplay();
-    if (config.get("showFPS", true)) fpsDisplay();
-    
-    setInterval(() => {
-        let ele = document.querySelector("#app > div.interface.text-2 > div.team-section > div.player > div > div.head-right > div.nickname");
-        if (ele === null) return;
-        config.set("user", ele.innerText);
-    }, 3500);  
-    
-    const url = config.get("customScope", "");
-    if (url != "") {
-        setInterval(function () {
-            let x = document.getElementsByClassName("sniper-mwNMW")[0];
-            if (x) {
-                if (x.src != url) {
-                    x.src = url;
-                    x.width = config.get("scopeSize", 200)
-                    x.height = config.get("scopeSize", 200)
-                    x.removeAttribute("class");
-                }
+if (config.get('showFPS', true))
+    refreshLoop();
+
+if (config.get('showHP', true))
+    observeHp();
+
+updateChatState();
+
+const url = config.get('customScope');
+if (url) {
+    setInterval(function() {
+        const x = document.getElementsByClassName('sniper-mwNMW')[0];
+        if (x) {
+            if (x.src != url) {
+                x.src = url;
+                x.width = config.get('scopeSize', 200);
+                x.height = config.get('scopeSize', 200);
+                x.removeAttribute('class');
             }
-        }, 1000);
-    }
+        }
+    }, 1000);
+}
+}
+
+function addSettingsButton() {
+const canvas = document.querySelector('#app > div.game-interface > div.esc-interface > div.right-container > div.head > div.head-right');
+if (canvas) {
+    if (document.getElementById('clientSettingsGame'))
+        return;
+    canvas.insertAdjacentHTML('afterbegin', '<button data-v-02c36fca="" id = "clientSettingsGame" data-v-b427fee8="" class="button right-btn rectangle" style="background-color: var(--secondary-5); --hover-color:#5C688F; --top:#5C688F; --bottom:#252E4B; width: 5vw;; padding: 0px; margin: 0px;"><div data-v-02c36fca="" class="triangle"></div><div data-v-02c36fca="" class="text"><img data-v-b8de1e14="" data-v-b427fee8="" src="https://media.discordapp.net/attachments/912303941449039932/913787350738407434/client_icon.png" width="100%" height="auto"></div><div data-v-02c36fca="" class="borders"><div data-v-02c36fca="" class="border-top border"></div><div data-v-02c36fca="" class="border-bottom border"></div></div></button>');
+    settings = document.querySelector('#app > div.game-interface > div.esc-interface > div.right-container > div.head > div.head-right > button:nth-child(1)');
+    settings.addEventListener('click', () => {
+        ipcRenderer.send('show-settings');
+    });
+} else
+    setTimeout(addSettingsButton, 500);
+}
+
+function setUsername() {
+const ele = document.querySelector('#app > div.interface.text-2 > div.team-section > div.player > div > div.head-right > div.nickname');
+if (ele === null || ele.innerText == 'Newbie') {
+    setTimeout(setUsername, 100);
+    return;
+}
+
+const re = new RegExp(' ', 'g');
+const user = ele.innerText.replace(re, '');
+config.set('user', user);
 }
 
 function resetVars() {
-    pingdiv = null;
-    framesPerSeconddiv = null;
+FPSdiv = null;
+settings = null;
 }
 
-ipcRenderer.on('chat', (event, state, force) => {
-    setChatState(state, force);
-})
-
-function setChatState(state, force) {
-    let chat = document.getElementsByClassName("chat chat-position")[0];
-    if (chat === undefined) {
-        if (force) setTimeout(() => {setChatState(state, force)}, 1000);
-        return;
-    };
-    if (state) {
-        chat.style = "display: flex;";
-    } else {
-        chat.style = "display: none;";
-    }
+function observeHp() {
+const hpNode = document.querySelector('#app > div.game-interface > div.desktop-game-interface > div.state > div.hp > div.cont-hp > div');
+if (!hpNode) {
+    setTimeout(observeHp, 100);
+    return;
+}
+hpObserver.observe(hpNode, {
+    attributes: true,
+    attributeFilter: ['style']
+});
+document.querySelector('#app > div.game-interface > div.desktop-game-interface > div.state > div.hp > div.hp-title.text-1').innerText = '100';
 }
 
-function showNotification(){
-    let x = document.getElementById("clientNotif")
-    clearTimeout(x);
-    let toast = document.getElementById("clientNotif");
-    toast.style.transform = "translateX(0)";
-    x = setTimeout(()=>{
-        toast.style.transform = "translateX(-400px)"
-    }, 3000);
+function updateChatState() {
+const chatState = config.get('chatType', 'Show');
+switch (chatState) {
+case 'Hide':
+    setChatState(false);
+    break;
+case 'Show':
+    setChatState(true);
+    break;
+case 'While Focused':
+    setChatState(false, true);
+    break;
+}
 }
 
-function createBalloon(text, error=false) {
-    let border = '';
-    let style = '';
-    if (error) {
-        border = '<i class="fas fa-times-circle" style="color: #ff355b;"></i>'
-        style = 'border-left: 8px solid #ff355b;';
-    }
-    else {
-        border = '<i class="fas fa-check-square"></i>'
-        style = 'border-left: 8px solid #47D764;';
-    }
-    
-    let d1 = document.getElementsByClassName("container-1")[0];
-    d1.innerHTML = border;
-    let toast = document.getElementById("clientNotif");
-    toast.style = style;
-    let d2 = document.getElementsByClassName("container-2")[0];
-    d2.innerHTML = `<p>${text}</p>`;
-    showNotification();
+function setChatState(state, isFocusActive = false) {
+const chat = document.getElementsByClassName('chat chat-position')[0];
+isChatFocus = isFocusActive;
+if (chat === undefined) {
+    setTimeout(() => { setChatState(state, isFocusActive); }, 1000);
+    return;
+}
+if (state)
+    chat.style = 'display: flex;';
+else
+    chat.style = 'display: none;';
+}
+
+function showNotification() {
+let x = document.getElementById('clientNotif');
+clearTimeout(x);
+const toast = document.getElementById('clientNotif');
+toast.style.transform = 'translateX(0)';
+x = setTimeout(() => {
+    toast.style.transform = 'translateX(-400px)';
+}, 3000);
+}
+
+function createBalloon(text, error = false) {
+let border = '';
+let style = '';
+
+if (error) {
+    border = '<i class="fas fa-times-circle" style="color: #ff355b;"></i>';
+    style = 'border-left: 8px solid #ff355b;';
+} else {
+    border = '<i class="fas fa-check-square"></i>';
+    style = 'border-left: 8px solid #47D764;';
+}
+
+const d1 = document.getElementsByClassName('container-1')[0];
+d1.innerHTML = border;
+const toast = document.getElementById('clientNotif');
+toast.style = style;
+const d2 = document.getElementsByClassName('container-2')[0];
+d2.innerHTML = `<p>${text}</p>`;
+showNotification();
+}
+
+function toggleChat() {
+const chat = document.getElementsByClassName('chat chat-position')[0];
+const input = document.getElementById('WMNn');
+if (document.activeElement == input) {
+    setTimeout(toggleChat, 100);
+    return;
+}
+if (chat.style.display == 'flex') {
+    chat.blur();
+    chat.style = 'display: none;';
+} else {
+    chat.style = 'display: flex;';
+    chat.focus();
+    input.focus();
+}
 }
 
 window.addEventListener('keydown', function(event) {
-    switch(event.key) {
-        case 'F1':
-            startRecording();
-            break;
-        case 'F2':
-            stopRecording(true);
-            break;
-        case 'F3':
-            stopRecording(false);
-            break;
-    }
+const autoJoinKey = config.get('AJ_keybind', 'F7');
+switch (event.key) {
+case 'F1':
+    startRecording();
+    break;
+case 'F2':
+    stopRecording(true);
+    break;
+case 'F3':
+    stopRecording(false);
+    break;
+case autoJoinKey:
+    autoJoin.launch().then(res => {
+        if (!res.success || res.found == 0) {
+            createBalloon('No Match Found!', true);
+            return;
+        }
+
+        const url = `https://kirka.io/games/${res.code}`;
+        setTimeout(() => {
+            console.log('Loading', url);
+            window.location.replace(url);
+        }, 0);
+    });
+    break;
+case 'Escape':
+    addSettingsButton();
+    break;
+case 'Enter':
+    if (isChatFocus)
+        toggleChat();
+    break;
+}
 });
 
-let fps;
+ipcRenderer.on('updateChat', () => {
+updateChatState();
+});
+
 const times = [];
-
-
-function pingDisplay() {
-    console.log("Starting Ping")
-    setInterval(() => {
-        let t1= Date.now()
-        fetch('https://www.krunker.io/')
-        .then((res) => {
-            ping = Date.now() - t1
-        })
-    }, 2500)
-
-    refreshLoop()
-}
+let fps = 0;
 
 function refreshLoop() {
-    updatePing(ping);
+updateFPS(fps);
 
-    window.requestAnimationFrame(() => {
-        const now = performance.now();
-        while (times.length > 0 && times[0] <= now - 1000) {
-            times.shift();
-        }
-        times.push(now);
-        ping = times.length;
+window.requestAnimationFrame(() => {
+    const now = performance.now();
+    while (times.length > 0 && times[0] <= now - 1000)
+        times.shift();
 
-        refreshLoop();
-    });
-}
+    times.push(now);
+    fps = times.length;
 
-
-function updatePing(ping) {
-    leftIcons = document.querySelector('.state-cont');
-    if (leftIcons === null) return;
-    if (pingdiv === null) {
-        pingdiv = document.createElement('div');
-        leftIcons.appendChild(pingdiv);
-    }
-    if (!config.get("showPing", true)) {
-        pingdiv.innerText = ``
-    } else {
-        pingdiv.innerText = `FPS: ${ping}`
-    }
-}
-
-window.addEventListener("mouseup", (e) => {
-   if (e.button === 3 || e.button === 4)
-      e.preventDefault();
+    refreshLoop();
 });
+}
+
+function updateFPS(_fps) {
+leftIcons = document.querySelector('.state-cont');
+if (leftIcons === null) return;
+if (FPSdiv === null) {
+    FPSdiv = document.createElement('div');
+    leftIcons.appendChild(FPSdiv);
+}
+if (!config.get('showFPS', true))
+    FPSdiv.innerText = '';
+else
+    FPSdiv.innerText = `FPS: ${_fps}`;
+}
+
+if (config.get('preventM4andM5', true)) {
+window.addEventListener('mouseup', (e) => {
+    if (e.button === 3 || e.button === 4)
+        e.preventDefault();
+});
+}
 
 window.addEventListener('load', () => {
-    setInterval(() => {
-        let allpossible = [];
-        let all_nickname = document.getElementsByClassName('nickname');
-        allpossible.push(...all_nickname);
+setInterval(() => {
+    const allpossible = [];
+    const all_nickname = document.getElementsByClassName('nickname');
+    const all_tabs = document.getElementsByClassName('player-name text-2');
+    allpossible.push(...all_nickname, ...all_tabs);
 
-        for (let key in allpossible) {
-            let nickname = allpossible[key];
-            if (nickname.innerText === undefined) continue;
-            let user = nickname.innerText.toString();
-            if (user.slice(-1) === " ") {
-                user = user.slice(0, -1)
-            }
-            badges = badge_checker(user);
-            if (badges[0].start) {
-                nickname.innerText = user + " ";
-            }
-            
-            for (let badge_ in badges) {
-                let badge =  badges[badge_];
-                if (badge == undefined) {return}
-                if (badge.start) {
-                    nickname.insertAdjacentHTML('beforeend', `<img src="${badge.url}" class="KirkaHomeBadge" width="25px" height=auto title=${badge.role}>`);
-                }
+    for (const key in allpossible) {
+        const nickname = allpossible[key];
+        if (nickname.innerHTML.toString().includes('clientbadge')) {
+            const children = nickname.children;
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                if (String(child.src).includes('discord'))
+                    child.remove();
             }
         }
-    }, 750)
+        let user = nickname.innerText.toString();
+        const re = new RegExp(' ', 'g');
+        user = user.replace(re, '');
+
+        const badge = checkbadge(user);
+        if (badge == undefined)
+            continue;
+
+        nickname.insertAdjacentHTML('beforeend', `<img data-v-e6e1daf8 clientbadge src="${badge.url}" height=20 title=${badge.role}>`);
+    }
+}, 750);
+});
+
+const hpObserver = new MutationObserver((data, observer) => {
+data.forEach(ele => {
+    const width = parseInt(ele.target.style.width.replace('%', ''));
+    document.querySelector('#app > div.game-interface > div.desktop-game-interface > div.state > div.hp > div.hp-title.text-1').innerText = width;
+});
 });
 
 async function configMR() {
-    let clientWindow = remote.getCurrentWindow().getMediaSourceId();
-    const constraints = {
-        audio:{
-                mandatory: {
-                    chromeMediaSource: 'desktop',
-                    chromeMediaSourceId: clientWindow,
-                }
-            },
-        video: {
-            mandatory: {
-                chromeMediaSource: 'desktop',
-                chromeMediaSourceId: clientWindow,
-                minWidth: 1280,
-                maxWidth: 1920,
-                minHeight: 720,
-                maxHeight: 1080,
-                minFrameRate: 60
-            }
+const clientWindow = remote.getCurrentWindow().getMediaSourceId();
+const constraints = {
+    audio: {
+        mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: clientWindow,
         }
-    };
-    const options = {
-        videoBitsPerSecond: 3000000,
-        mimeType: 'video/webm; codecs=vp9'
-    };
-    let mediaRecorder;
-    return new Promise((resolve, reject) => {
-        navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-            mediaRecorder = new MediaRecorder(stream, options);
-            console.log("mR", mediaRecorder);
-            mediaRecorder.ondataavailable = handleDataAvailable;
-            mediaRecorder.onstop = handleStop;
-            mediaRecorder.onstart = () => { console.log("started recording"); recording=true };
-            mediaRecorder.onpause = () => { paused=true };
-            mediaRecorder.onresume = () => { paused=false };
-            resolve(mediaRecorder);
-        })
-        .catch(err => {
-            console.error("getUserMedia failed with error: ", err);
-            reject(err);
-        });
-    })
-}
-
-function handleDataAvailable(e) {
-    recordedChunks.push(e.data);
-}
-
-async function handleStop(e) {
-    recording = false;
-    if(starttime === undefined) return;
-    const blob = new Blob(recordedChunks, {
-        type: 'video/mp4;'
-    });
-    console.log("handeling stop. starttime:", starttime, "Date.now():", Date.now(), "pause:", totalPause, "duration", Date.now() - starttime - totalPause)
-    fixwebm(blob, Date.now() - starttime - totalPause, saveRecording)
-}
-
-function startRecording() {
-    if (mediaRecorder === null) {
-        console.log('First Time: Configuring mR');
-        configMR()
-        .then((rs) => {
-            console.log('Configurated!', rs);
-            mediaRecorder = rs;
-            startrec();
-        })
-        .catch((err) => {
-            console.error(err);
-        })
-    } else {
-        if (recording) {
-            if (paused) {
-                resumeRecording()
-            } else {
-                pauseRecording()
-            }
-        } else {
-            startrec()
+    },
+    video: {
+        mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: clientWindow,
+            minWidth: 1280,
+            maxWidth: 1920,
+            minHeight: 720,
+            maxHeight: 1080,
+            minFrameRate: 60
         }
     }
+};
+const options = {
+    videoBitsPerSecond: 3000000,
+    mimeType: 'video/webm; codecs=vp9'
+};
+const stream = await navigator.mediaDevices.getUserMedia(constraints);
+mediaRecorder = new MediaRecorder(stream, options);
+console.log('mR', mediaRecorder);
+mediaRecorder.ondataavailable = (e) => { recordedChunks.push(e.data); };
+mediaRecorder.onstop = handleStop;
+mediaRecorder.onstart = () => {
+    console.log('started recording');
+    recording = true;
+};
+mediaRecorder.onpause = () => { paused = true; };
+mediaRecorder.onresume = () => { paused = false; };
+return mediaRecorder;
+}
+
+async function handleStop() {
+recording = false;
+if (starttime === undefined)
+    return;
+const blob = new Blob(recordedChunks, {
+    type: 'video/mp4;'
+});
+console.log('handeling stop. starttime:', starttime, 'Date.now():', Date.now(), 'pause:', totalPause, 'duration', Date.now() - starttime - totalPause);
+fixwebm(blob, Date.now() - starttime - totalPause, saveRecording);
+}
+
+async function startRecording() {
+if (mediaRecorder === null) {
+    console.log('First Time: Configuring mR');
+    try {
+        const mR = await configMR();
+        console.log('Configurated!', mR);
+        mediaRecorder = mR;
+        startrec();
+    } catch (err) {
+        console.error(err);
+    }
+} else if (recording) {
+    if (paused)
+        resumeRecording();
+    else
+        pauseRecording();
+} else
+    startrec();
 }
 
 function pauseRecording() {
-    console.log("mR is paused!")
-    pausetime = Date.now() - starttime - totalPause
-    try {
-        mediaRecorder.pause();
-        createBalloon("Recording Paused!")
-    }catch(e) {
-        console.error(e)
-    }
-    pause = Date.now();
+console.log('mR is paused!');
+pausetime = Date.now() - starttime - totalPause;
+try {
+    mediaRecorder.pause();
+    createBalloon('Recording Paused!');
+} catch (e) {
+    console.error(e);
+}
+pause = Date.now();
 }
 
 function resumeRecording() {
-    console.log("mR is resumed!")
-    try {
-        mediaRecorder.resume();
-        createBalloon("Recording Resumed!")
-    }catch(e) {
-        console.error(e)
-    }
-    totalPause += Date.now() - pause;
+console.log('mR is resumed!');
+try {
+    mediaRecorder.resume();
+    createBalloon('Recording Resumed!');
+} catch (e) {
+    console.error(e);
 }
+totalPause += Date.now() - pause;
+}
+
 let shouldSave = false;
+
 function stopRecording(save) {
-    if (!recording) {
-        createBalloon('No recording in progress!', true)
-        return;
-    }
-    if(mediaRecorder === undefined || mediaRecorder === null) return;
-    if (save) {
-        let folderPath = path.join(logDir, 'videos');
-        console.log(folderPath);
-        if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath);
-        filepath = path.join(folderPath, `kirka-${Date.now()}.mp4`);
-    }
-    shouldSave = save;
-    try {
-        if(paused) {
-            mediaRecorder.resume();
-        }
-        mediaRecorder.stop();
-    }catch(e) {
-        console.error(e)
-    }
+if (!recording) {
+    createBalloon('No recording in progress!', true);
+    return;
+}
+if (mediaRecorder === undefined || mediaRecorder === null)
+    return;
+
+if (save) {
+    const folderPath = path.join(logDir, 'videos');
+    console.log(folderPath);
+    if (!fs.existsSync(folderPath))
+        fs.mkdirSync(folderPath);
+    filepath = path.join(folderPath, `kirkaclient-${new Date(Date.now()).toDateString()}.mp4`);
+}
+shouldSave = save;
+try {
+    if (paused)
+        mediaRecorder.resume();
+    mediaRecorder.stop();
+} catch (e) {
+    console.error(e);
+}
 }
 
 async function startrec() {
-    console.log("mR state:", mediaRecorder.state);
-    recordedChunks = [];
-    try {
-        mediaRecorder.start(500);
-    }catch(e) {
-        console.error(e)
+console.log('mR state:', mediaRecorder.state);
+recordedChunks = [];
+try {
+    mediaRecorder.start(500);
+} catch (e) {
+    console.error(e);
+}
+createBalloon('Recording started!');
+starttime = Date.now();
+pause = 0;
+totalPause = 0;
+console.log('New mR state:', mediaRecorder.state);
+}
+
+function saveRecording(blob) {
+console.log('In saveRecording');
+getBlobDuration.default(blob).then(function(duration) {
+    console.log(duration + ' seconds');
+    if (isNaN(parseFloat(duration))) {
+        console.error('Broken duration detected, attempting fix...');
+        fixwebm(blob, 300000, saveRecording);
+    } else {
+        blob.arrayBuffer().then(buf => {
+            const buffer = Buffer.from(buf);
+            console.log('Filepath:', filepath);
+            if (filepath !== '') fs.writeFileSync(filepath, buffer);
+            if (shouldSave) createBalloon('Recording Saved!');
+            else createBalloon('Recording Cancelled', true);
+            console.log('Saved!');
+        });
     }
-    createBalloon("Recording started!")
-    starttime = Date.now();
-    pause = 0;
-    totalPause = 0;
-    console.log("New mR state:", mediaRecorder.state);
+}).catch(err => {
+    console.log(err);
+});
 }
 
-function saveRecording (blob) {
-    console.log("In saveRecording")
-    getBlobDuration.default(blob).then(function(duration) {
-        console.log(duration + ' seconds');
-        if (isNaN(parseFloat(duration))) {
-            console.error("Broken duration detected, attempting fix...")
-            fixwebm(blob, 300000, saveRecording);
-            return;
-        } else {
-            blob.arrayBuffer().then(buf => {
-                const buffer = Buffer.from(buf)
-                console.log("Filepath:", filepath)
-                if (filepath !== '') fs.writeFileSync(filepath, buffer);
-                if (shouldSave) createBalloon("Recording Saved!");
-                else createBalloon('Recording Cancelled', true);
-                console.log('Saved!');
-            })
-        }
-    })
-}
+ipcRenderer.on('twitch-msg', (event, userName, userColor, msg) => {
+genChatMsg(msg, userName, userColor);
+});
 
-function genChatMsg(text) {
-    console.log(text);
-    let chatHolder = document.getElementsByClassName('messages messages-cont')[0]
-    if (chatHolder === undefined) return;
+function genChatMsg(text, sender = '[KClient2.0]', style = null) {
+const chatHolder = document.getElementsByClassName('messages messages-cont')[0];
+if (chatHolder === undefined)
+    return;
 
-    let chatItem = document.createElement('div');
-    let chatUser = document.createElement('span');
-    let chatMsg = document.createElement('span');
+const chatItem = document.createElement('div');
+const chatUser = document.createElement('span');
+const chatMsg = document.createElement('span');
 
-    chatItem.className = 'message';
-    chatMsg.className = 'chatMsg_client';
-    chatMsg.innerText = text;
-    chatUser.className = 'name';
-    chatUser.innerText = "[KClient2.0]";
+chatItem.className = 'message';
+chatMsg.className = 'chatMsg_client';
+chatMsg.innerText = text;
+chatUser.className = 'name';
+chatUser.innerText = `${sender}: `;
+if (style)
+    chatUser.style.color = style;
 
-    chatItem.appendChild(chatUser);
-    chatItem.appendChild(chatMsg);
-    chatHolder.appendChild(chatItem);
-
-    console.log('generated message');
-    return chatMsg;
+chatItem.appendChild(chatUser);
+chatItem.appendChild(chatMsg);
+chatHolder.appendChild(chatItem);
+chatHolder.scrollTop = chatHolder.scrollHeight;
+return chatMsg;
 }
 
 function currentState() {
-    let gameUrl = window.location.href;
-    if (gameUrl.includes('games')) {
-        return 'game'
-    } else {
-        return 'home'
-    }
+const gameUrl = window.location.href;
+if (gameUrl.includes('games'))
+    return 'game';
+else
+    return 'home';
+}
+
+ipcRenderer.on('badges', (event, data) => {
+badgesData = data;
+});
+
+function getBadge(type, user = null, role = null) {
+const badgeURLs = {
+    'dev': 'https://media.discordapp.net/attachments/863805591008706607/874611064606699560/contributor.png',
+    'staff': 'https://media.discordapp.net/attachments/863805591008706607/874611070478745600/staff.png',
+    'patreon': 'https://media.discordapp.net/attachments/856723935357173780/874673648143855646/patreon.PNG',
+    'gfx': 'https://media.discordapp.net/attachments/863805591008706607/874611068570333234/gfx.PNG',
+    'con': 'https://media.discordapp.net/attachments/863805591008706607/874611066909380618/dev.png',
+    'kdev': 'https://media.discordapp.net/attachments/874979720683470859/888703118118907924/kirkadev.PNG',
+    'vip': 'https://media.discordapp.net/attachments/874979720683470859/888703150628941834/vip.PNG',
+    'nitro': 'https://media.discordapp.net/attachments/874979720683470859/921387669743861821/nitro.png'
 };
+if (type == 'custom') {
+    const customBadges = badgesData.custom;
+    for (let i = 0; i < customBadges.length; i++) {
+        const badgeData = customBadges[i];
+        if (badgeData.name === user) {
+            return {
+                type: badgeData.type,
+                url: badgeData.url,
+                name: user,
+                role: badgeData.role
+            };
+        }
+    }
+} else if (badgesData[type].includes(user)) {
+    return {
+        type: type,
+        url: badgeURLs[type],
+        name: user,
+        role: role
+    };
+}
+}
+
+function checkbadge(user) {
+if (badgesData === undefined)
+    return undefined;
+
+const preferred = config.get('prefBadge', 'None');
+const badgeValues = {
+    'Developer': 'dev',
+    'Contributor': 'con',
+    'Staff': 'staff',
+    'Patreon': 'patreon',
+    'GFX Artist': 'gfx',
+    'V.I.P': 'vip',
+    'Kirka Dev': 'kdev',
+    'Server Booster': 'nitro',
+    'Custom Badge': 'custom'
+};
+
+let searchBadge = null;
+if (preferred != 'None' && user == config.get('user'))
+    searchBadge = badgeValues[preferred];
+
+if (searchBadge)
+    return getBadge(searchBadge, user, preferred);
+else {
+    const allPossible = [];
+    const allTypes = Object.keys(badgesData);
+    for (let i = 0; i < allTypes.length; i++) {
+        const badgeType = allTypes[i];
+
+        if (badgesData[badgeType].includes(user))
+            allPossible.push(badgeType);
+        else if (badgeType == 'custom') {
+            const customBadges = badgesData.custom;
+            for (let j = 0; j < customBadges.length; j++) {
+                const badgeData = customBadges[j];
+                if (badgeData.name === user)
+                    allPossible.push('custom');
+            }
+        }
+    }
+
+    if (allPossible.length) {
+        if (allPossible.includes('custom'))
+            return getBadge('custom', user);
+        // eslint-disable-next-line no-undef
+        return getBadge(allPossible[0], user, _.invert(badgeValues)[allPossible[0]]);
+    }
+    return undefined;
+}
+}
+

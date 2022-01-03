@@ -6,18 +6,34 @@ const electronLocalshortcut = require("electron-localshortcut");
 const Store = require("electron-store");
 const log = require('electron-log')
 const config = new Store();
-const { DiscordClient, InitRPC } = require('./features/discordRPC')
+const { DiscordClient, initRPC } = require('./features/discordRPC')
 const yargs = require('yargs')
 
 const argv = yargs.argv
 const AUTO_UPDATE = argv.update || config.get('autoUpdate', 'download')
 
+console.log(`kclient@${app.getVersion()} { Electron: ${process.versions.electron}, Node: ${process.versions.node}, Chromium: ${process.versions.chrome} }`);
+
+if (!app.requestSingleInstanceLock()) {
+	app.quit();
+}
+
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// app.commandLine.appendSwitch('disable-gpu-vsync')
+// app.commandLine.appendSwitch('ignore-gpu-blacklist')
+// app.commandLine.appendSwitch('enable-zero-copy')
+
+ipcMain.handle('get-app-info', () => ({
+	name: app.name,
+	version: app.getVersion()
+}));
 
 if (require("electron-squirrel-startup")) {
     app.quit();
 }
 if (config.get('disableFrameRateLimit', false)) {
-    app.commandLine.appendSwitch('disable-frame-rate-limit')
+    app.commandLine.appendSwitch('disable-frame-rate-limit');
+    app.commandLine.appendSwitch('disable-gpu-vsync');
 }
 
 ipcMain.on('close-me', (evt, arg) => {
@@ -87,15 +103,14 @@ function createWindow() {
 
     win.once("ready-to-show", () => {
         showWin();
-        if (config.get("discordRPC", true)) {
-            InitRPC();
-            DiscordClient(win.webContents);
-        }
-        if (config.get("chatType", "Show") !== "Show") {
-            win.webContents.send('chat', false, true);
-        }
     });
-
+    ipcMain.on('toggleRPC', () => {
+        const state = config.get('discordRPC');
+        if (state)
+            initRPC(socket, contents);
+        else
+            closeRPC();
+    });
     function showWin() {
         if (!canDestroy) {
             setTimeout(showWin, 500);
@@ -120,7 +135,11 @@ function createShortcutKeys() {
     electronLocalshortcut.register(win, 'F6', () => checkkirka());
     electronLocalshortcut.register(win, 'F11', () => win.setSimpleFullScreen(!win.isSimpleFullScreen()));
     electronLocalshortcut.register(win, 'Enter', () => chatShowHide());
+    electronLocalshortcut.register(win, 'F12', () => win.webContents.openDevTools());
+    if (config.get('controlW', true))
+    electronLocalshortcut.register(win, 'Control+W', () => { CtrlW = true; });
 }
+
 
 let chatState = false;
 function chatShowHide() {
@@ -229,7 +248,7 @@ function createSplashWindow() {
 							buttons: ['Restart', 'Later'],
 							title: 'Application Update',
 							message: process.platform === 'win32' ? releaseNotes : releaseName,
-							detail: 'A new version has been downloaded. Restart the application to apply the updates.'
+							detail: `A new Version of ${app.name} Has been Downloaded please install them now.`
 						  }
 						
 						  dialog.showMessageBox(dialogOpts).then((returnValue) => {
